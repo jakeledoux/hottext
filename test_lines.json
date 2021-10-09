@@ -1,0 +1,9 @@
+{
+    "meta.welcome": ["Welcome to the greatest dungeon crawler of all time!"],
+    "combat.encounter": [
+        "You encounter {enemy}!",
+        "You stumble across {enemy}!",
+        "Oh no! It's {enemy}!"
+    ],
+    "combat.slay": ["You slay the beast with your {weapon}!", "Your {weapon} ends {enemy}'s life."]
+}
