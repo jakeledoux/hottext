@@ -85,9 +85,9 @@ impl<R: Rng> HotText<R> {
         Ok(self)
     }
 
-    pub fn get_line_raw(&mut self, key: &str) -> Option<&str> {
+    pub fn get_line_raw(&mut self, key: &str) -> Option<String> {
         if let Some(lines) = self.line_pairs.get(key) {
-            lines.iter().choose(&mut self.rng).map(|s| s.as_str())
+            lines.iter().choose(&mut self.rng).cloned()
         } else {
             None
         }
@@ -95,7 +95,7 @@ impl<R: Rng> HotText<R> {
 
     pub fn get_line(&mut self, key: &str) -> Result<mustache::Template, Box<dyn Error>> {
         let raw_line = self.get_line_raw(key).ok_or(TemplateCompileError {})?;
-        Ok(mustache::compile_str(raw_line)?)
+        Ok(mustache::compile_str(&raw_line)?)
     }
 
     pub fn render_line<'a, D: IntoIterator<Item = (&'a str, &'a str)>>(
@@ -104,7 +104,7 @@ impl<R: Rng> HotText<R> {
         data: D,
     ) -> Result<String, Box<dyn Error>> {
         let raw_line = self.get_line_raw(key).ok_or(TemplateCompileError {})?;
-        let template = mustache::compile_str(raw_line)?;
+        let template = mustache::compile_str(&raw_line)?;
         let data: HashMap<&str, &str> = data.into_iter().collect();
         Ok(template.render_to_string(&data)?)
     }
