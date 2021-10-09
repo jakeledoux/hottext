@@ -1,10 +1,23 @@
-use rand::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
+use std::fmt;
 use std::fs;
 use std::path::Path;
 
+use rand::prelude::*;
+
 type LinePairs = HashMap<String, HashSet<String>>;
+
+#[derive(Debug)]
+pub struct TemplateCompileError {}
+
+impl fmt::Display for TemplateCompileError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "TemplateCompileError")
+    }
+}
+
+impl std::error::Error for TemplateCompileError {}
 
 pub struct HotText<R: Rng> {
     line_pairs: LinePairs,
@@ -72,12 +85,28 @@ impl<R: Rng> HotText<R> {
         Ok(self)
     }
 
-    pub fn get_line(&mut self, key: &str) -> Option<&str> {
+    pub fn get_line_raw(&mut self, key: &str) -> Option<&str> {
         if let Some(lines) = self.line_pairs.get(key) {
             lines.iter().choose(&mut self.rng).map(|s| s.as_str())
         } else {
             None
         }
+    }
+
+    pub fn get_line(&mut self, key: &str) -> Result<mustache::Template, Box<dyn Error>> {
+        let raw_line = self.get_line_raw(key).ok_or(TemplateCompileError {})?;
+        Ok(mustache::compile_str(raw_line)?)
+    }
+
+    pub fn render_line<'a, D: IntoIterator<Item = (&'a str, &'a str)>>(
+        &mut self,
+        key: &str,
+        data: D,
+    ) -> Result<String, Box<dyn Error>> {
+        let raw_line = self.get_line_raw(key).ok_or(TemplateCompileError {})?;
+        let template = mustache::compile_str(raw_line)?;
+        let data: HashMap<&str, &str> = data.into_iter().collect();
+        Ok(template.render_to_string(&data)?)
     }
 }
 
@@ -98,7 +127,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            ht.get_line("meta.welcome").unwrap(),
+            ht.get_line_raw("meta.welcome").unwrap(),
             "Welcome to the greatest dungeon crawler of all time!"
         );
 
@@ -107,7 +136,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            ht.get_line("meta.welcome").unwrap(),
+            ht.get_line_raw("meta.welcome").unwrap(),
             "Welcome to the greatest dungeon crawler of all time!"
         );
     }
@@ -122,7 +151,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            ht.get_line("meta.welcome").unwrap(),
+            ht.get_line_raw("meta.welcome").unwrap(),
             "Welcome to the greatest dungeon crawler of all time!"
         );
     }
@@ -139,7 +168,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            ht.get_line("meta.welcome").unwrap(),
+            ht.get_line_raw("meta.welcome").unwrap(),
             "Welcome to the greatest dungeon crawler of all time!"
         );
     }
@@ -158,25 +187,39 @@ mod tests {
         ht.load_hashmap(hashmap).unwrap();
 
         assert_eq!(
-            ht.get_line("meta.welcome").unwrap(),
+            ht.get_line_raw("meta.welcome").unwrap(),
             "Welcome to the greatest dungeon crawler of all time!"
         );
     }
 
     #[test]
-    fn get_line() {
+    fn get_line_raw() {
         let mut ht = HotText::new(rand::thread_rng())
             .with_load_json("./test_lines.json")
             .unwrap();
         assert_eq!(
-            ht.get_line("meta.welcome").unwrap(),
+            ht.get_line_raw("meta.welcome").unwrap(),
             "Welcome to the greatest dungeon crawler of all time!"
         );
         assert!([
-            "You encounter {enemy}!",
-            "You stumble across {enemy}!",
-            "Oh no! It's {enemy}!"
+            "You encounter a lion!",
+            "You stumble across a tiger!",
+            "Oh no! It's a bear!",
+            "Oh my, it's a dragon!"
         ]
-        .contains(&ht.get_line("combat.encounter").unwrap()));
+        .contains(&ht.get_line_raw("combat.encounter").unwrap()));
+    }
+
+    #[test]
+    fn format_line() {
+        let mut ht = HotText::new(rand::thread_rng());
+        ht.insert("killed", "You were killed by {{enemy}}.")
+            .unwrap();
+
+        assert_eq!(
+            ht.render_line("killed", vec![("enemy", "your mom")])
+                .unwrap(),
+            "You were killed by your mom."
+        );
     }
 }
