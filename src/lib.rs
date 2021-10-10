@@ -102,9 +102,9 @@ impl<R: Rng> HotText<R> {
         Ok(self)
     }
 
-    pub fn get_line_raw(&mut self, key: &str) -> Option<&str> {
+    pub fn get_line_raw(&mut self, key: &str) -> Option<String> {
         if let Some(lines) = self.line_pairs.get(key) {
-            lines.iter().choose(&mut self.rng).map(|s| s.as_str())
+            lines.iter().choose(&mut self.rng).cloned()
         } else {
             None
         }
@@ -225,7 +225,7 @@ mod tests {
             "Oh no! It's a bear!",
             "Oh my, it's a dragon!"
         ]
-        .contains(&ht.get_line_raw("combat.encounter").unwrap()));
+        .contains(&ht.get_line_raw("combat.encounter").unwrap().as_str()));
     }
 
     #[test]
