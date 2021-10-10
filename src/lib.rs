@@ -14,6 +14,13 @@ macro_rules! get_line {
 }
 
 #[macro_export]
+macro_rules! get_lines {
+    ($ht:expr, $k:expr) => {
+        $ht.get_lines_raw($k).expect("No line with key $k")
+    };
+}
+
+#[macro_export]
 macro_rules! fmt_line {
     ($ht:expr, $k:expr, $($key:ident = $value:expr) +) => {
         $ht.render_line(
@@ -105,6 +112,14 @@ impl<R: Rng> HotText<R> {
     pub fn get_line_raw(&mut self, key: &str) -> Option<String> {
         if let Some(lines) = self.line_pairs.get(key) {
             lines.iter().choose(&mut self.rng).cloned()
+        } else {
+            None
+        }
+    }
+
+    pub fn get_lines_raw(&mut self, key: &str) -> Option<HashSet<String>> {
+        if let Some(lines) = self.line_pairs.get(key) {
+            Some(lines.clone())
         } else {
             None
         }
@@ -247,6 +262,20 @@ mod tests {
             .unwrap();
 
         assert_eq!(get_line!(ht, "killed"), "You were killed by a meteorite.");
+    }
+
+    #[test]
+    fn macros_get_lines() {
+        let mut ht = HotText::new(rand::thread_rng());
+        ht.insert("killed", "You were killed by a meteorite.")
+            .unwrap();
+        ht.insert("killed", "A zombie ate your face.").unwrap();
+
+        assert!(get_lines!(ht, "killed").into_iter().eq(vec![
+            "You were killed by a meteorite.",
+            "A zombie ate your face."
+        ]
+        .into_iter()));
     }
 
     #[test]
