@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn format_line() {
         let mut ht = HotText::new(rand::thread_rng());
-        ht.insert("killed", "You were killed by {{enemy}}.")
+        ht.insert("killed", "You were killed by {{{enemy}}}.")
             .unwrap();
 
         assert_eq!(
@@ -252,12 +252,11 @@ mod tests {
     #[test]
     fn macros_fmt_line() {
         let mut ht = HotText::new(rand::thread_rng());
-        ht.insert("killed", "You were killed by {{enemy}}.")
-            .unwrap();
+        ht.insert("enter", "You enter {{{location}}}.").unwrap();
 
         assert_eq!(
-            fmt_line!(ht, "killed", enemy = "your mom"),
-            "You were killed by your mom."
+            fmt_line!(ht, "enter", location = "Dino Dan's Tunnel Network"),
+            "You enter Dino Dan's Tunnel Network."
         );
     }
 }
