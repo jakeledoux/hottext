@@ -6,6 +6,23 @@ use std::path::Path;
 
 use rand::prelude::*;
 
+#[macro_export]
+macro_rules! get_line {
+    ($ht:expr, $k:expr) => {
+        $ht.get_line_raw($k).expect("No line with key $k")
+    };
+}
+
+#[macro_export]
+macro_rules! fmt_line {
+    ($ht:expr, $k:expr, $($key:ident = $value:expr) +) => {
+        $ht.render_line(
+            $k,
+            vec![$((stringify!($key), $value)) +]
+        ).expect("Failed to find or format line.")
+    };
+}
+
 type LinePairs = HashMap<String, HashSet<String>>;
 
 #[derive(Debug)]
@@ -85,9 +102,9 @@ impl<R: Rng> HotText<R> {
         Ok(self)
     }
 
-    pub fn get_line_raw(&mut self, key: &str) -> Option<String> {
+    pub fn get_line_raw(&mut self, key: &str) -> Option<&str> {
         if let Some(lines) = self.line_pairs.get(key) {
-            lines.iter().choose(&mut self.rng).cloned()
+            lines.iter().choose(&mut self.rng).map(|s| s.as_str())
         } else {
             None
         }
@@ -106,6 +123,7 @@ impl<R: Rng> HotText<R> {
         let raw_line = self.get_line_raw(key).ok_or(TemplateCompileError {})?;
         let template = mustache::compile_str(&raw_line)?;
         let data: HashMap<&str, &str> = data.into_iter().collect();
+        dbg!(&data);
         Ok(template.render_to_string(&data)?)
     }
 }
@@ -219,6 +237,27 @@ mod tests {
         assert_eq!(
             ht.render_line("killed", vec![("enemy", "your mom")])
                 .unwrap(),
+            "You were killed by your mom."
+        );
+    }
+
+    #[test]
+    fn macros_get_line() {
+        let mut ht = HotText::new(rand::thread_rng());
+        ht.insert("killed", "You were killed by a meteorite.")
+            .unwrap();
+
+        assert_eq!(get_line!(ht, "killed"), "You were killed by a meteorite.");
+    }
+
+    #[test]
+    fn macros_fmt_line() {
+        let mut ht = HotText::new(rand::thread_rng());
+        ht.insert("killed", "You were killed by {{enemy}}.")
+            .unwrap();
+
+        assert_eq!(
+            fmt_line!(ht, "killed", enemy = "your mom"),
             "You were killed by your mom."
         );
     }
