@@ -123,7 +123,6 @@ impl<R: Rng> HotText<R> {
         let raw_line = self.get_line_raw(key).ok_or(TemplateCompileError {})?;
         let template = mustache::compile_str(&raw_line)?;
         let data: HashMap<&str, &str> = data.into_iter().collect();
-        dbg!(&data);
         Ok(template.render_to_string(&data)?)
     }
 }
