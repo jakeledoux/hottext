@@ -9,23 +9,25 @@ use rand::prelude::*;
 #[macro_export]
 macro_rules! get_line {
     ($ht:expr, $k:expr) => {
-        $ht.get_line_raw($k).expect("No line with key $k")
+        $ht.get_line_raw($k)
+            .expect(&format!("No line with key {}", $k))
     };
 }
 
 #[macro_export]
 macro_rules! get_lines {
     ($ht:expr, $k:expr) => {
-        $ht.get_lines_raw($k).expect("No line with key $k")
+        $ht.get_lines_raw($k)
+            .expect(&format!("No lines with key {}", $k))
     };
 }
 
 #[macro_export]
 macro_rules! fmt_line {
-    ($ht:expr, $k:expr, $($key:ident = $value:expr) +) => {
+    ($ht:expr, $k:expr, $($key:ident = $value:expr),+) => {
         $ht.render_line(
             $k,
-            vec![$((stringify!($key), $value)) +]
+            vec![$((stringify!($key), $value)),+]
         ).expect("Failed to find or format line.")
     };
 }
@@ -281,11 +283,27 @@ mod tests {
     #[test]
     fn macros_fmt_line() {
         let mut ht = HotText::new(rand::thread_rng());
-        ht.insert("enter", "You enter {{{location}}}.").unwrap();
+        ht.insert("enter.first-person", "You enter {{{location}}}.")
+            .unwrap();
+        ht.insert("enter.third-person", "{{{name}}} enters {{{location}}}.")
+            .unwrap();
 
         assert_eq!(
-            fmt_line!(ht, "enter", location = "Dino Dan's Tunnel Network"),
+            fmt_line!(
+                ht,
+                "enter.first-person",
+                location = "Dino Dan's Tunnel Network"
+            ),
             "You enter Dino Dan's Tunnel Network."
+        );
+        assert_eq!(
+            fmt_line!(
+                ht,
+                "enter.third-person",
+                name = "Neo",
+                location = "The Matrix"
+            ),
+            "Neo enters The Matrix."
         );
     }
 }
