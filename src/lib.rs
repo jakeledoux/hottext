@@ -6,6 +6,12 @@ use std::path::Path;
 
 use rand::prelude::*;
 
+// TODO: Only evaluate values that are used in formatting the line chosen
+
+/// Gets one line with the specified key from HotText.
+///
+/// # Panics
+/// Panics if the key does not exist.
 #[macro_export]
 macro_rules! get_line {
     ($ht:expr, $k:expr) => {
@@ -14,6 +20,10 @@ macro_rules! get_line {
     };
 }
 
+/// Gets all lines with the specified key from HotText and returns them as a vector.
+///
+/// # Panics
+/// Panics if the key does not exist.
 #[macro_export]
 macro_rules! get_lines {
     ($ht:expr, $k:expr) => {
@@ -22,6 +32,10 @@ macro_rules! get_lines {
     };
 }
 
+/// Gets one line with the specified key from HotText and formats it using the provided arguments.
+///
+/// # Panics
+/// Panics if the key does not exist.
 #[macro_export]
 macro_rules! fmt_line {
     ($ht:expr, $k:expr, $($key:ident = $value:expr),+) => {
@@ -45,6 +59,7 @@ impl fmt::Display for TemplateCompileError {
 
 impl std::error::Error for TemplateCompileError {}
 
+/// Used to store, retrieve, and format HotText template lines.
 pub struct HotText<R: Rng> {
     line_pairs: LinePairs,
     rng: R,
@@ -58,6 +73,7 @@ impl<R: Rng> HotText<R> {
         }
     }
 
+    /// Insert one key/line pair into the collection.
     pub fn insert(&mut self, key: &str, line: &str) -> Result<(), Box<dyn Error>> {
         if let Some(lines) = self.line_pairs.get_mut(key) {
             lines.insert(line.to_owned());
@@ -69,6 +85,7 @@ impl<R: Rng> HotText<R> {
         Ok(())
     }
 
+    /// Insert multiple lines with a shared key into the collection.
     pub fn extend(&mut self, key: &str, new_lines: HashSet<String>) -> Result<(), Box<dyn Error>> {
         if let Some(lines) = self.line_pairs.get_mut(key) {
             lines.extend(new_lines);
@@ -78,6 +95,7 @@ impl<R: Rng> HotText<R> {
         Ok(())
     }
 
+    /// Insert multiple key/line pairs into the collection.
     pub fn load_hashmap(&mut self, line_pairs: LinePairs) -> Result<(), Box<dyn Error>> {
         for (key, new_lines) in line_pairs {
             if let Some(lines) = self.line_pairs.get_mut(&key) {
@@ -89,28 +107,33 @@ impl<R: Rng> HotText<R> {
         Ok(())
     }
 
+    /// Loads key/line pairs from a .json file
     pub fn load_json<P: AsRef<Path>>(&mut self, file: P) -> Result<(), Box<dyn Error>> {
         let file = fs::File::open(file)?;
         let line_pairs: LinePairs = serde_json::from_reader(file)?;
         self.load_hashmap(line_pairs)
     }
 
+    /// Loads key/line pairs from a .toml file
     pub fn load_toml<P: AsRef<Path>>(&mut self, file: P) -> Result<(), Box<dyn Error>> {
         let content = fs::read_to_string(file)?;
         let line_pairs: LinePairs = toml::from_str(&content)?;
         self.load_hashmap(line_pairs)
     }
 
+    /// Chainable variant of [`HotText::load_json()`]
     pub fn with_load_json<P: AsRef<Path>>(mut self, file: P) -> Result<Self, Box<dyn Error>> {
         self.load_json(file)?;
         Ok(self)
     }
 
+    /// Chainable variant of [`HotText::load_toml()`]
     pub fn with_load_toml<P: AsRef<Path>>(mut self, file: P) -> Result<Self, Box<dyn Error>> {
         self.load_toml(file)?;
         Ok(self)
     }
 
+    /// Gets one line with the specified key as a [`String`].
     pub fn get_line_raw(&mut self, key: &str) -> Option<String> {
         if let Some(lines) = self.line_pairs.get(key) {
             lines.iter().choose(&mut self.rng).cloned()
@@ -119,6 +142,7 @@ impl<R: Rng> HotText<R> {
         }
     }
 
+    /// Gets all lines with the specified key as [`String`]s.
     pub fn get_lines_raw(&mut self, key: &str) -> Option<HashSet<String>> {
         if let Some(lines) = self.line_pairs.get(key) {
             Some(lines.clone())
@@ -127,11 +151,13 @@ impl<R: Rng> HotText<R> {
         }
     }
 
+    /// Gets one line with the specified key compiled as a [`mustache::Template`].
     pub fn get_line(&mut self, key: &str) -> Result<mustache::Template, Box<dyn Error>> {
         let raw_line = self.get_line_raw(key).ok_or(TemplateCompileError {})?;
         Ok(mustache::compile_str(&raw_line)?)
     }
 
+    /// Gets one line with the specified key and formats it using the provided data.
     pub fn render_line<'a, D: IntoIterator<Item = (&'a str, &'a str)>>(
         &mut self,
         key: &str,
